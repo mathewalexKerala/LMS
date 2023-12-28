@@ -339,6 +339,7 @@ export const updateProfilePicture = CatchAsyncError(async (req: Request, res: Re
           width: 150,
 
         });
+
         user.avatar = {
           public_id: myCloud.public_id,
           url: myCloud.secure_url
