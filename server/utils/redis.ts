@@ -2,6 +2,7 @@ import {Redis} from 'ioredis';
 require('dotenv').config()
 
 const redisClient =()=>{
+  console.log('dd',process.env.REDIS_URL)
   if(process.env.REDIS_URL){
     console.log('Redis connected');
     return process.env.REDIS_URL

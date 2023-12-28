@@ -12,7 +12,7 @@ cloudinary.config({
 
 
 //server create
-app.listen(process.env.PORT,()=>{
+app.listen(8000,()=>{
   
   console.log(`Server is running on port ${process.env.PORT}`);
   connectDB()
