@@ -40,7 +40,7 @@ app.get('/test', (req: Request, res: Response, next: NextFunction) => {
 
 //unknown route
 app.all('*', (req: Request, res: Response, next: NextFunction) => {
-  console.log(req)
+  console.log('this is unknown route')
   const err = new Error(`Route ${req.originalUrl} not found`);
   next(err)
 })

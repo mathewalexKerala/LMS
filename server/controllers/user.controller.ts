@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import UserModel, { IUser } from '../models/user.model'
 import ErrorHandler from "../utils/ErrorHandler";
 import { CatchAsyncError } from "../middleware/catchAsyncErrors";
-import userModel from "../models/user.model";
+
 import jwt, { JwtPayload, Secret } from 'jsonwebtoken'
 import ejs from 'ejs'
 import path from 'path'
@@ -11,6 +11,7 @@ import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt
 import { redis } from "../utils/redis";
 import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.service";
 import cloudinary from 'cloudinary'
+
 //register user
 require('dotenv').config()
 interface IRegistrationBody {
@@ -20,9 +21,11 @@ interface IRegistrationBody {
   avatar?: string;
 }
 export const registrationUser = CatchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+  console.log('registration user')
   try {
     const { name, email, password, avatar } = req.body;
-    const isEmailExist = await userModel.findOne({ email })
+    const isEmailExist = await UserModel.findOne({ email })
+
     if (isEmailExist) {
       return next(new ErrorHandler('Email already exist', 400))
     }
@@ -42,16 +45,19 @@ export const registrationUser = CatchAsyncError(async (req: Request, res: Respon
         subject: 'Activate your email',
         template: 'activation-mail.ejs',
         data
-      })
+      });
       res.status(201).json({
         success: true,
-        message: `Please check your email: ${user.email} to your account`,
+        message: `Please check your email: ${user.email} to activate your account`,
         activationToken: activationToken.token
       })
     } catch (error: any) {
+      console.log('registration nested error',error.message)
       return next(new ErrorHandler(error.message, 400))
     }
   } catch (error: any) {
+    console.log('it is this error',error.message)
+    
     return next(new ErrorHandler(error.message, 400))
   }
 })
@@ -82,28 +88,39 @@ interface IActivationRequest {
 }
 
 export const activateUser = CatchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
+  console.log('activate user ')
   try {
     const { activation_token, activation_code } = req.body as IActivationRequest;
+    console.log(activation_token, activation_code)
     const newUser: { user: IUser; activationCode: string } = jwt.verify(activation_token,
 
       process.env.ACTIVATION_SECRET as string) as { user: IUser; activationCode: string };
 
+console.log('Decode user:',newUser.user)
+
+
     if (newUser.activationCode !== activation_code) {
+      console.log('activationCode not equal')
       return next(new ErrorHandler('Invalid Activation code', 400))
     }
     const { name, email, password } = newUser.user;
-
-    const existUser = await userModel.findOne({ email })
+console.log('activate user',name,email,password)
+    const existUser = await UserModel.findOne({ email })
+    console.log('exist user',existUser)
     if (existUser) {
+      console.log('user exists')
       return next(new ErrorHandler('Email already exist', 400))
     }
-    const user = await userModel.create({
+    const user = await UserModel.create({
       name, email, password
-    });
+    }).then(()=>{console.log('user is created')})
+    
+    console.log('this is the creataed user',user)
     res.status(201).json({
       success: true
     })
   } catch (error: any) {
+    console.log('error message',error.message)
     return next(new ErrorHandler(error.message, 400))
   }
 })
@@ -121,7 +138,7 @@ export const loginUser = CatchAsyncError(async (req: Request, res: Response, nex
     if (!email || !password) {
       return next(new ErrorHandler("Please provide Email and Password", 400));
     }
-    const user = await userModel.findOne({ email }).select('+password')
+    const user = await UserModel.findOne({ email }).select('+password')
 
     if (!user) {
       return next(new ErrorHandler('Invalid email or password', 400));
@@ -221,9 +238,9 @@ interface ISocialAuthBody {
 export const socialAuth = CatchAsyncError(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, name, avatar } = req.body as ISocialAuthBody;
-    const user = await userModel.findOne({ email });
+    const user = await UserModel.findOne({ email });
     if (!user) {
-      const newUser = await userModel.create({ email, name, avatar });
+      const newUser = await UserModel.create({ email, name, avatar });
       sendToken(newUser, 200, res)
     }
     else {
@@ -246,10 +263,10 @@ export const updateUserInfo = CatchAsyncError(async (req: Request, res: Response
   try {
     const { name, email } = req.body as IUpdateUserInfo;
     const userId = req.user?._id;
-    const user = await userModel.findById(userId);
+    const user = await UserModel.findById(userId);
 
     if (email && user) {
-      const isEmailExist = await userModel.findOne({ email })
+      const isEmailExist = await UserModel.findOne({ email })
       if (isEmailExist) {
         return next(new ErrorHandler('Email already exist', 400));
       }
@@ -288,7 +305,7 @@ export const updatePassword = CatchAsyncError(async (req: Request, res: Response
       return next(new ErrorHandler('Invalid user', 400))
     }
 
-    const user = await userModel.findById(req.user?._id).select('+password');
+    const user = await UserModel.findById(req.user?._id).select('+password');
 
     if (user?.password === undefined) {
       return next(new ErrorHandler('Invalid user', 400))
@@ -325,7 +342,7 @@ export const updateProfilePicture = CatchAsyncError(async (req: Request, res: Re
     const { avatar } = req.body
 
     const userId = req.user?._id;
-    const user = await userModel.findById(userId)
+    const user = await UserModel.findById(userId)
     if (avatar && user) {
 
       //if we have one avatar then call this 
@@ -399,7 +416,7 @@ export const deleteUser=CatchAsyncError(async(req: Request, res: Response, next:
 try {
   const {id} = req.params;
 
-  const user = await userModel.findById(id);
+  const user = await UserModel.findById(id);
 
   if(!user){
     return next(new ErrorHandler('User not found',404))
